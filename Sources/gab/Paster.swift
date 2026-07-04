@@ -14,12 +14,21 @@ enum Paster {
 
         pb.clearContents()
         pb.setString(text, forType: .string)
+        let ourChangeCount = pb.changeCount
 
         sendCmdV()
 
-        // Restore after the paste has had time to land. A blind short timer races
-        // slow apps and clipboard managers; 250ms is a comfortable personal-app margin.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+        // Restore the old clipboard only AFTER the paste has certainly landed.
+        // The frontmost app reads the pasteboard asynchronously; if we restore too
+        // early (the old blind 250ms timer), a sluggish or heavy app — especially
+        // right after wake — reads *after* the restore and pastes the previous
+        // clipboard instead of the transcription. Give it a generous margin.
+        //
+        // Also skip the restore if anything else touched the clipboard since our
+        // write (changeCount moved) — that means a clipboard manager or the user
+        // put something new there, and we must not stomp it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            guard pb.changeCount == ourChangeCount else { return }
             pb.clearContents()
             if let previous {
                 pb.setString(previous, forType: .string)

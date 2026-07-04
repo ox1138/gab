@@ -4,7 +4,13 @@ import AVFoundation
 /// AVAudioEngine hands us the hardware format (usually 44.1/48kHz); an
 /// AVAudioConverter does the rate/channel conversion per tap buffer.
 final class AudioCapture {
-    private let engine = AVAudioEngine()
+    /// The mic isn't ready (e.g. right after wake the default input device
+    /// reports a 0 Hz / 0-channel format). Thrown instead of letting the
+    /// invalid format reach `installTap`, which would raise an uncatchable
+    /// ObjC exception and abort the whole process.
+    enum CaptureError: Error { case inputNotReady }
+
+    private var engine: AVAudioEngine?
     private let outputFormat: AVAudioFormat
     private var converter: AVAudioConverter?
     private var running = false
@@ -23,24 +29,39 @@ final class AudioCapture {
         guard !running else { return }
         lock.lock(); samples.removeAll(keepingCapacity: true); lock.unlock()
 
+        // Build a fresh engine each session. A cached engine can hold a stale
+        // hardware format across sleep/wake or an audio-device change, and the
+        // input device may not be ready for a moment after wake — both make
+        // `installTap` assert and SIGABRT (the ObjC exception can't be caught
+        // in Swift). A fresh engine re-queries the current device format.
+        let engine = AVAudioEngine()
         let input = engine.inputNode
         let inputFormat = input.outputFormat(forBus: 0)
-        converter = AVAudioConverter(from: inputFormat, to: outputFormat)
+
+        // Guard the invalid post-wake format BEFORE it reaches installTap.
+        // Bail gracefully so the user can just hold the key again a moment later.
+        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0,
+              let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
+            throw CaptureError.inputNotReady
+        }
+        self.converter = converter
 
         input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] buffer, _ in
             self?.append(buffer)
         }
         engine.prepare()
         try engine.start()
+        self.engine = engine
         running = true
     }
 
     /// Stop capture and return the accumulated 16kHz samples.
     @discardableResult
     func stop() -> [Float] {
-        guard running else { return currentSamples() }
+        guard running, let engine else { return currentSamples() }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+        self.engine = nil
         running = false
         return currentSamples()
     }
