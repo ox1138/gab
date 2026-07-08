@@ -148,3 +148,19 @@ Makefile             build the .app
 - Richer clipboard restore (preserve non-text pasteboard contents)
 - Silence-trim + no-speech confidence gate for noisy-room hallucinations
 - Prompt-shaping pass for piping into coding agents
+
+## Licensing
+
+gab is released under the [MIT License](LICENSE).
+
+It builds on other MIT-licensed open-source work, whose copyright notices carry
+over to any binaries you distribute (e.g. the `.dmg`):
+
+- **[whisper.cpp](https://github.com/ggerganov/whisper.cpp)** (incl. ggml) —
+  MIT © the ggml authors. Statically linked into the app.
+- **Whisper models** ([ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp))
+  — ggml conversions of OpenAI's [Whisper](https://github.com/openai/whisper),
+  MIT © OpenAI. Downloaded at runtime; bundled into release/`.dmg` builds.
+
+MIT is permissive and imposes no restrictions on gab's own code — it only asks
+that these upstream copyright notices travel with copies of the software.
