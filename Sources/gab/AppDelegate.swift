@@ -96,9 +96,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Launch at login
 
+    private let loginItemConfiguredKey = "gab.loginItemConfigured"
+
+    /// Default to starting at login on first launch only. After that the user's
+    /// menu choice sticks — re-registering every launch would undo "off".
     private func enableLaunchAtLogin() {
-        if SMAppService.mainApp.status != .enabled {
-            try? SMAppService.mainApp.register()
+        let defaults = UserDefaults.standard
+        if !defaults.bool(forKey: loginItemConfiguredKey) {
+            if SMAppService.mainApp.status != .enabled {
+                try? SMAppService.mainApp.register()
+            }
+            defaults.set(true, forKey: loginItemConfiguredKey)
         }
         refreshLoginItemState()
     }
