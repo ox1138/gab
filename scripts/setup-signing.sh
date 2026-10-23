@@ -25,8 +25,11 @@ openssl req -x509 -newkey rsa:2048 -sha256 -days 3650 -nodes \
   -addext "extendedKeyUsage=critical,codeSigning" >/dev/null 2>&1
 
 # -legacy: Apple's `security` can't read OpenSSL 3's default PKCS12 algorithms.
+# The system LibreSSL already uses the legacy ones and rejects the flag.
 # A non-empty password is also required (empty-password p12 fails MAC verify).
-openssl pkcs12 -export -legacy -out "$TMP/identity.p12" \
+LEGACY=""
+openssl version | grep -q "^OpenSSL 3" && LEGACY="-legacy"
+openssl pkcs12 -export $LEGACY -out "$TMP/identity.p12" \
   -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
   -passout "pass:$P12_PASS" >/dev/null 2>&1
 
