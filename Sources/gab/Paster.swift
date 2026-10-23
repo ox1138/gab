@@ -36,13 +36,23 @@ enum Paster {
         }
     }
 
+    private static let commandKeyCode: CGKeyCode = 55 // left Command
+
+    /// Presses Command itself around the V, like a real keyboard. Apps that track
+    /// modifiers from key presses rather than each event's flags (Blender, many
+    /// games and Java apps) otherwise see a plain "v".
     private static func sendCmdV() {
         let src = CGEventSource(stateID: .combinedSessionState)
-        guard let down = CGEvent(keyboardEventSource: src, virtualKey: vKeyCode, keyDown: true),
-              let up = CGEvent(keyboardEventSource: src, virtualKey: vKeyCode, keyDown: false) else { return }
+        guard let cmdDown = CGEvent(keyboardEventSource: src, virtualKey: commandKeyCode, keyDown: true),
+              let down = CGEvent(keyboardEventSource: src, virtualKey: vKeyCode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: src, virtualKey: vKeyCode, keyDown: false),
+              let cmdUp = CGEvent(keyboardEventSource: src, virtualKey: commandKeyCode, keyDown: false) else { return }
+        cmdDown.flags = .maskCommand
         down.flags = .maskCommand
         up.flags = .maskCommand
-        down.post(tap: .cghidEventTap)
-        up.post(tap: .cghidEventTap)
+        cmdUp.flags = []
+        for event in [cmdDown, down, up, cmdUp] {
+            event.post(tap: .cghidEventTap)
+        }
     }
 }
