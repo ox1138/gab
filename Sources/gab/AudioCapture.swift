@@ -55,10 +55,12 @@ final class AudioCapture {
         running = true
     }
 
-    /// Stop capture and return the accumulated 16kHz samples.
+    /// Stop capture and return the accumulated 16kHz samples. Returns nothing if
+    /// capture wasn't running — the buffer still holds the previous clip, and
+    /// handing it back would transcribe (and paste) it a second time.
     @discardableResult
     func stop() -> [Float] {
-        guard running, let engine else { return currentSamples() }
+        guard running, let engine else { return [] }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         self.engine = nil

@@ -1,10 +1,12 @@
 import Foundation
 import CWhisper
 
-/// Loads a ggml Whisper model once and keeps it resident. Thread-safe for
-/// serial use (we only ever transcribe one clip at a time).
+/// Loads a ggml Whisper model once and keeps it resident. A whisper context is
+/// not reentrant — two overlapping `whisper_full` calls abort() inside ggml — so
+/// `transcribe` is serialized with a lock.
 final class Transcriber {
     private var ctx: OpaquePointer?
+    private let lock = NSLock()
 
     init?(modelPath: String) {
         var cparams = whisper_context_default_params()
@@ -28,6 +30,7 @@ final class Transcriber {
     /// Transcribe 16kHz mono float32 PCM. Returns trimmed text, or "" on failure.
     func transcribe(_ samples: [Float]) -> String {
         guard let ctx, !samples.isEmpty else { return "" }
+        lock.lock(); defer { lock.unlock() }
 
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
         params.print_progress = false

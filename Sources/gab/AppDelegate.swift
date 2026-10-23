@@ -229,7 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let duration = Double(samples.count) / sampleRate
         guard duration >= minDurationSeconds else { return } // drop quick taps / silence
-        guard let transcriber else { return }
+        guard !busy, let transcriber else { return } // one transcription at a time
 
         busy = true
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
