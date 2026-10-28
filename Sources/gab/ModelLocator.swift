@@ -7,6 +7,9 @@ import Foundation
 enum ModelLocator {
     /// Preferred models, best first — used when the user hasn't picked one.
     static let preferred = ["ggml-large-v3-turbo.bin", "ggml-small.en.bin", "ggml-base.en.bin"]
+    /// Models that understand languages other than English, best first.
+    static let preferredMultilingual = ["ggml-large-v3-turbo.bin", "ggml-large-v3.bin",
+                                        "ggml-small.bin", "ggml-base.bin", "ggml-tiny.bin"]
 
     private static let selectionKey = "gab.selectedModel"
 
@@ -47,6 +50,9 @@ enum ModelLocator {
         case "ggml-base.en.bin":        return "Base English — fast, ~150 MB"
         case "ggml-large-v3.bin":       return "Large v3 — slow, ~3 GB"
         case "ggml-tiny.en.bin":        return "Tiny English — fastest, ~75 MB"
+        case "ggml-small.bin":          return "Small — balanced, ~465 MB"
+        case "ggml-base.bin":           return "Base — fast, ~150 MB"
+        case "ggml-tiny.bin":           return "Tiny — fastest, ~75 MB"
         default:
             return fileName
                 .replacingOccurrences(of: "ggml-", with: "")
@@ -75,6 +81,17 @@ enum ModelLocator {
         }
     }
 
+    /// `.en` models only understand English.
+    static func isEnglishOnly(_ fileName: String) -> Bool {
+        fileName.hasSuffix(".en.bin")
+    }
+
+    /// Best multilingual model on disk (filename), if any.
+    static func bestMultilingual() -> String? {
+        if let name = preferredMultilingual.first(where: { find($0) != nil }) { return name }
+        return available().first { !isEnglishOnly($0.fileName) }?.fileName
+    }
+
     /// Persisted user choice (filename), if any.
     static var selectedFileName: String? {
         get { UserDefaults.standard.string(forKey: selectionKey) }
@@ -82,11 +99,18 @@ enum ModelLocator {
     }
 
     /// The model gab should load: env override > saved selection > auto-preferred.
+    /// When the language isn't English, an English-only model is never auto-picked
+    /// over a multilingual one.
     static func modelPath() -> String {
         if let override = ProcessInfo.processInfo.environment["GAB_MODEL"], !override.isEmpty {
             return override
         }
-        if let chosen = selectedFileName, let path = find(chosen) {
+        let multilingual = LanguageSetting.needsMultilingualModel ? bestMultilingual() : nil
+        if let chosen = selectedFileName, let path = find(chosen),
+           !(isEnglishOnly(chosen) && multilingual != nil) {
+            return path
+        }
+        if let multilingual, let path = find(multilingual) {
             return path
         }
         for name in preferred {

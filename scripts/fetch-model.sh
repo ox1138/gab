@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Download a ggml Whisper model into ~/Library/Application Support/gab/
-# Usage: scripts/fetch-model.sh [base.en|large-v3-turbo]   (default: base.en)
+# Usage: scripts/fetch-model.sh [base.en|large-v3-turbo|...]   (default: base.en)
+# Models ending in .en are English-only; use large-v3-turbo for other languages.
 set -euo pipefail
 
 MODEL="${1:-base.en}"

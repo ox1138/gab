@@ -7,6 +7,8 @@ import CWhisper
 final class Transcriber {
     private var ctx: OpaquePointer?
     private let lock = NSLock()
+    /// False for `.en` models, which only know English and can't auto-detect.
+    private(set) var isMultilingual = false
 
     init?(modelPath: String) {
         var cparams = whisper_context_default_params()
@@ -21,14 +23,16 @@ final class Transcriber {
             NSLog("gab: failed to load whisper model at \(modelPath)")
             return nil
         }
+        isMultilingual = whisper_is_multilingual(ctx) != 0
     }
 
     deinit {
         if let ctx { whisper_free(ctx) }
     }
 
-    /// Transcribe 16kHz mono float32 PCM. Returns trimmed text, or "" on failure.
-    func transcribe(_ samples: [Float]) -> String {
+    /// Transcribe 16kHz mono float32 PCM. `language` is a Whisper code ("en", "pt")
+    /// or "auto". Returns trimmed text, or "" on failure.
+    func transcribe(_ samples: [Float], language: String) -> String {
         guard let ctx, !samples.isEmpty else { return "" }
         lock.lock(); defer { lock.unlock() }
 
@@ -44,8 +48,8 @@ final class Transcriber {
         params.suppress_blank = true
         params.suppress_nst = true        // drop non-speech tokens (reduces "[silence]" junk)
         params.n_threads = Int32(max(1, ProcessInfo.processInfo.activeProcessorCount - 2))
-        // Hardcode English for v1; revisit for auto-detect later.
-        let lang = "en"
+        // English-only models fail language detection, so they always get "en".
+        let lang = isMultilingual ? language : "en"
 
         let ok = lang.withCString { langPtr -> Bool in
             params.language = langPtr

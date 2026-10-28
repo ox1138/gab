@@ -52,7 +52,7 @@ Whisper models are **not** bundled with the source (they're large binaries, kept
 git). Download one yourself — the easiest way is the fetch script:
 
 ```bash
-./scripts/fetch-model.sh large-v3-turbo   # or: base.en, small.en, tiny.en, large-v3
+./scripts/fetch-model.sh large-v3-turbo   # or: base.en, small.en, tiny.en, large-v3, small, base
 ```
 
 It saves to `~/Library/Application Support/gab/`, where gab picks it up automatically —
@@ -70,8 +70,20 @@ Drop the `.bin` into `~/Library/Application Support/gab/`:
 | `ggml-tiny.en.bin` | ~75 MB | Fastest, least accurate | [download](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin) |
 | `ggml-large-v3.bin` | ~3 GB | Slowest, most accurate | [download](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin) |
 
+Models ending in `.en` understand **English only**. For any other language use a
+multilingual model — `large-v3-turbo` is the best choice; `small`, `base` and `tiny`
+(no `.en`) are lighter but noticeably less accurate outside English.
+
 gab auto-selects the best model present (`large-v3-turbo` > `small.en` > `base.en`).
 To force a specific one, set `GAB_MODEL=/full/path/to/ggml-*.bin` before launching.
+
+## Language
+
+Pick the language you dictate in from the menu bar **Language** submenu (English,
+Português, Español, Français, Deutsch, Italiano, or Auto-detect). The choice is saved
+across launches. Choosing anything other than English switches to the best multilingual
+model you have and greys out the English-only ones. Auto-detect can misjudge very short
+clips, so pick your language explicitly if you only dictate in one.
 
 ## Permissions (first run)
 

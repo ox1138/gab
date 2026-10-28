@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusMenuItem: NSMenuItem?
     private var loginItem: NSMenuItem?
     private var modelSubmenu: NSMenu?
+    private var languageSubmenu: NSMenu?
     private var currentModelPath: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -38,10 +39,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let modelParent = NSMenuItem(title: "Model", action: nil, keyEquivalent: "")
         let modelMenu = NSMenu()
+        modelMenu.autoenablesItems = false   // we grey out English-only models ourselves
         modelParent.submenu = modelMenu
         modelSubmenu = modelMenu
         menu.addItem(modelParent)
         rebuildModelMenu()
+
+        let languageParent = NSMenuItem(title: "Language", action: nil, keyEquivalent: "")
+        let languageMenu = NSMenu()
+        languageParent.submenu = languageMenu
+        languageSubmenu = languageMenu
+        menu.addItem(languageParent)
+        rebuildLanguageMenu()
 
         menu.addItem(.separator())
         let login = NSMenuItem(title: "Start at Login", action: #selector(toggleLoginItem), keyEquivalent: "")
@@ -71,7 +80,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.target = self
             item.representedObject = model.fileName
             item.state = (model.path == current) ? .on : .off
+            // An English-only model can't transcribe the chosen language.
+            item.isEnabled = !(LanguageSetting.needsMultilingualModel && ModelLocator.isEnglishOnly(model.fileName))
             modelSubmenu.addItem(item)
+        }
+    }
+
+    // MARK: - Language menu
+
+    private func rebuildLanguageMenu() {
+        guard let languageSubmenu else { return }
+        languageSubmenu.removeAllItems()
+        let current = LanguageSetting.selectedCode
+        func addItem(_ language: LanguageSetting.Language) {
+            let item = NSMenuItem(title: language.label, action: #selector(selectLanguage(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = language.code
+            item.state = (language.code == current) ? .on : .off
+            languageSubmenu.addItem(item)
+        }
+        addItem(LanguageSetting.auto)
+        languageSubmenu.addItem(.separator())
+        LanguageSetting.languages.forEach(addItem)
+    }
+
+    @objc private func selectLanguage(_ sender: NSMenuItem) {
+        guard let code = sender.representedObject as? String,
+              code != LanguageSetting.selectedCode else { return }
+        LanguageSetting.selectedCode = code
+        rebuildLanguageMenu()
+        rebuildModelMenu()
+        // Moving off English may swap an English-only model for a multilingual one.
+        if ModelLocator.modelPath() != currentModelPath { loadModel() }
+
+        if LanguageSetting.needsMultilingualModel && ModelLocator.bestMultilingual() == nil {
+            presentAlert(title: "\(LanguageSetting.label(for: code)) needs a multilingual model",
+                         text: "Your installed models only understand English. Run:\n\n"
+                             + "./scripts/fetch-model.sh large-v3-turbo\n\n"
+                             + "then pick it in the Model menu.")
         }
     }
 
@@ -232,8 +278,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !busy, let transcriber else { return } // one transcription at a time
 
         busy = true
+        let language = LanguageSetting.selectedCode
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let text = transcriber.transcribe(samples)
+            let text = transcriber.transcribe(samples, language: language)
             DispatchQueue.main.async {
                 self?.busy = false
                 Paster.paste(text)
