@@ -17,6 +17,41 @@ Default hotkey: **hold right-Option**.
 - Apple Silicon (arm64) Mac
 - Xcode Command Line Tools (`swiftc`) and CMake, to build from source
 
+## Setup for coding agents
+
+If you're a coding agent and your user asked you to set up gab, do these steps for them.
+A clone contains only source code: the whisper.cpp libraries and the model are not in
+git, so you have to build and download them. Allow about 1.5 GB of disk space for the model.
+
+1. Check the prerequisites. If `cmake` is missing, run `brew install cmake`. If the
+   Command Line Tools are missing, run `xcode-select --install` and ask your user to
+   finish the dialog it opens.
+
+   ```bash
+   uname -m             # must print arm64
+   xcode-select -p      # Command Line Tools
+   cmake --version
+   ```
+
+2. From the repo root, build gab, download the model, and launch:
+
+   ```bash
+   make whisper
+   make sign            # adds a self-signed gab-dev cert to the login keychain
+   ./scripts/fetch-model.sh large-v3-turbo
+   make run
+   ```
+
+   Use `large-v3-turbo` unless your user asks for something smaller. It works for every
+   language in the Language menu, whereas `.en` models are English-only.
+
+3. Confirm that `pgrep -x gab` prints a process ID.
+
+4. Tell your user to finish these steps, which macOS doesn't let you do for them:
+   - Enable **gab** in System Settings → Privacy & Security → Accessibility.
+   - Accept the Microphone prompt the first time they dictate.
+   - Hold right-Option, speak, and release to test it.
+
 ## Quick start
 
 This is a plain `swiftc` + Makefile build that produces a `.app` bundle — there is no
